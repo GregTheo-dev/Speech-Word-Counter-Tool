@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:speech_to_text/speech_to_text.dart';
 
 void main() => runApp(MyApp());
 
@@ -19,53 +21,64 @@ class SpeechCounter extends StatefulWidget {
 }
 
 class _SpeechCounterState extends State<SpeechCounter> {
-  late stt.SpeechToText _speech;
-  String userInput = "Give a word to";
-  bool _isListening = false;
+  SpeechToText _speechToText = SpeechToText();
+  String userInput = "";
   String _text = '';
   int wordCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _speech = stt.SpeechToText();
+    //_speechToText = stt.SpeechToText();
     _initSpeech();
   }
 
   void _initSpeech() async {
-    var status = await Permission.microphone.request();
-    if (status.isGranted) {
-      bool available = await _speech.initialize();
-      if (!available) {
-        dialogBox("No speech available");
-      }
+    final PermissionStatus permissionStatus = await _getPermission();
+    if (permissionStatus == PermissionStatus.denied) {
+      dialogBox("Please enable mic permission");
     }
-    else{
-      dialogBox("No microphone permission enabled. Please restart the app and allow permission");
-    }
+    await _speechToText.initialize();
+    setState(() {
+    });
   }
 
+  Future<PermissionStatus> _getPermission() async {
+    final PermissionStatus permission = await Permission.microphone.status;
+    if (permission != PermissionStatus.granted &&
+        permission != PermissionStatus.denied) {
+      final Map<Permission, PermissionStatus> permissionStatus =
+      await [Permission.microphone].request();
+      return permissionStatus[Permission.microphone] ??
+          PermissionStatus.permanentlyDenied;
+    } else {
+      return permission;
+    }
+  }
 
   void _startListening() async {
-    if (!_isListening) {
-      await _speech.listen(
-       localeId: "el_GR",
-        onResult: (result) {
-          setState(() {
-            _text = result.recognizedWords.toLowerCase();
-            wordCount = _text.split(RegExp(r'\b'+userInput+'\b')).length - 1;
-          });
-        },
-       // listenMode: stt.ListenMode.dictation,
-       // SpeechListenOptions.listenMode,
-      );
-      setState(() => _isListening = true);
-    }
+    await _speechToText.listen(
+        onResult: _onSpeechResult
+    );
+    setState(() {
+      wordCount = 0;
+    });
   }
 
+  void _onSpeechResult(SpeechRecognitionResult result) {
+    setState(() {
+      _text = result.recognizedWords;
+      //print(_text);
+      List<String> words = _text.split(" "); // Split the string into words
+      wordCount = words.where((word) => word == userInput).length;
+    });
+  }
+
+
   void _stopListening() async {
-    await _speech.stop();
-    setState(() => _isListening = false);
+    await _speechToText.stop();
+    setState(() {
+    });
   }
 
   dialogBox(String message) {
@@ -110,8 +123,8 @@ class _SpeechCounterState extends State<SpeechCounter> {
                     shape: const CircleBorder(),
                     padding: const EdgeInsets.all(40),
                   ),
-                  onPressed: _isListening ? _stopListening : _startListening,
-                  child: const Icon(Icons.record_voice_over, size: 60,),
+                  onPressed: _speechToText.isListening ? _stopListening : _startListening,
+                  child: Icon(_speechToText.isNotListening ? Icons.mic_off : Icons.mic, size: 60,),
                 ),
               ],
             ),
@@ -125,7 +138,11 @@ class _SpeechCounterState extends State<SpeechCounter> {
             ),
             onSubmitted: (String value) async {
               setState(() {
-                userInput = value;
+                List<String> list = value.split(" ");
+                if(list.length > 1 && list.last != ''){
+                  dialogBox("Please give only one word");
+                }
+                userInput = list.first;
               });
             },
           ),
