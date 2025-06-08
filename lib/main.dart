@@ -49,13 +49,15 @@ class _SpeechCounterState extends State<SpeechCounter> {
   void _startListening() async {
     if (!_isListening) {
       await _speech.listen(
+       localeId: "el_GR",
         onResult: (result) {
           setState(() {
             _text = result.recognizedWords.toLowerCase();
             wordCount = _text.split(RegExp(r'\b'+userInput+'\b')).length - 1;
           });
         },
-        listenMode: stt.ListenMode.dictation,
+       // listenMode: stt.ListenMode.dictation,
+       // SpeechListenOptions.listenMode,
       );
       setState(() => _isListening = true);
     }
@@ -101,10 +103,15 @@ class _SpeechCounterState extends State<SpeechCounter> {
               children: [
                 SizedBox(height: 20),
                 Text("$userInput count: $wordCount", style:  TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                SizedBox(height: 20),
+                SizedBox(height: 150),
                 ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.lightBlueAccent,
+                    shape: const CircleBorder(),
+                    padding: const EdgeInsets.all(40),
+                  ),
                   onPressed: _isListening ? _stopListening : _startListening,
-                  child: Text(_isListening ? "Stop" : "Start Recording"),
+                  child: const Icon(Icons.record_voice_over, size: 60,),
                 ),
               ],
             ),
